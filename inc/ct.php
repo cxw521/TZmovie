@@ -1,30 +1,43 @@
 <?php
 
-$url = 'https://www.360kan.com/ct/'.$tvID.'.html';
+$site = getParam('site');
+if($site) {
+    // 获取其它播放源的剧集
+    $urls = array();
+    $episodes = episodeList(4, $tvID, $site);
+    foreach($episodes as $k => $ep) {
+        $urls[] = array('no' => $k + 1, 'url' => $ep['url']);
+    }
+    echoTVUrls($urls);
+    die();
+}
 
-$content = curl($url);
+// 动漫播放详情（360kan 官方 JSON API）
+$playData = getMovieLinks(4, $tvID);
+$movieInfoData = $playData['info'];
+if(!$movieInfoData) die404('404');
 
-// 匹配主体
-preg_match('/<div class="title-left g-clear">(.*)<\/body>/sU', $content, $temp);
-if(!isset($temp[1])) die404('404');
+$movieInfo['name'] = $movieInfoData['title'];
+$movieInfo['description'] = isset($movieInfoData['description']) ? $movieInfoData['description'] : '';
 
-$content = $temp[1];
- 
-// 名字
-preg_match('/<h1>(.*)<\/h1>/sU', $content, $temp);
-$movieInfo['name'] = $temp[1];
+// 播放源站
+$movieInfo['playsite'] = $playData['sites'];
 
-// 描述
-preg_match('/style="display:none;"><span>简介：<\/span>(.*)<a href="#" class="js-close btn">收起/sU', $content, $temp);
-$movieInfo['description'] = $temp[1];
+// 默认源站剧集列表
+$movieInfo['urls'] = array();
+if(isset($playData['sites'][0])) {
+    $episodes = episodeList(4, $tvID, $playData['sites'][0]['ensite']);
+    foreach($episodes as $k => $ep) {
+        $movieInfo['urls'][] = array('no' => $k + 1, 'url' => $ep['url']);
+    }
+}
 
-// 链接
-preg_match('/<div class="num-tab-main g-clear js-tab"(.*)<div class="c-body g-clear">/sU', $content, $temp);
-preg_match_all('/<a data-num="(\d+)" data-daochu="(.*)" href="(.*)">/sU', $temp[1], $temp);
-for($j=0; $j<count($temp[0]); $j++) { 
-    $temp_urls = str_replace("http://cps.youku.com/redirect.html?id=0000028f&url=", "", $temp[3][$j]);
-    $movieInfo['urls'][] = array('no' => $temp[1][$j],
-                              'url' => $temp_urls);
+// 输出电视链接
+function echoTVUrls($urls) {
+    for($j=0; $j<count($urls); $j++) { 
+        echo '
+        <button type="button" class="am-btn am-btn-sm btn-play-source" data-url="'.$urls[$j]['url'].'">'.$urls[$j]['no'].'</button>';
+    }
 }
 
 // 输出网页头文件
@@ -57,7 +70,7 @@ ui_topNav();
 <div class="am-panel am-panel-default">
     <div class="am-panel-hd"><?php echo $movieInfo['name']; ?></div>
     
-    <?php if(!isset($movieInfo['urls'])) { ?>
+    <?php if(empty($movieInfo['urls'])) { ?>
     
     <div class="am-alert am-alert-warning" data-am-alert>
         <span class="am-icon-chain-broken am-icon-lg">&nbsp;</span> 
@@ -73,16 +86,44 @@ ui_topNav();
     <?php } ?>
 </div>
 
-<?php if(isset($movieInfo['urls'])) { ?>
+<?php if(!empty($movieInfo['urls'])) { ?>
 <div class="am-panel am-panel-default">
     <div class="am-panel-hd">选集</div>
     <div class="am-panel-bd">
-        <?php 
-        for($j=0; $j<count($movieInfo['urls']); $j++) { 
-            echo '
-            <button type="button" class="am-btn am-btn-sm btn-play-source" data-url="'.$movieInfo['urls'][$j]['url'].'">'.$movieInfo['urls'][$j]['no'].'</button>';
-        }
-        ?>
+        <div class="am-tabs" id="ct-res-choose" data-am-tabs>
+            <ul class="am-tabs-nav am-nav am-nav-tabs">
+                <?php 
+                echo '
+                <li class="am-active">
+                    <a href="#'.$movieInfo['playsite'][0]['ensite'].'">'.$movieInfo['playsite'][0]['cnsite'].'</a>
+                </li>';
+                
+                for($i=1; $i < count($movieInfo['playsite']); $i++) { 
+                    echo '
+                    <li>
+                        <a href="#'.$movieInfo['playsite'][$i]['ensite'].'">'.$movieInfo['playsite'][$i]['cnsite'].'</a>
+                    </li>';
+                }
+                ?>
+            </ul>
+            
+            <div class="am-tabs-bd ct-res-lists">
+                <?php 
+                // 默认的播放源
+                echo '<div class="am-tab-panel am-fade am-in am-active" id="'.$movieInfo['playsite'][0]['ensite'].'">';
+                
+                // 输出全部的剧集
+                echoTVUrls($movieInfo['urls']);
+                
+                echo '</div>';
+                
+                // 其它播放源
+                for($i=1; $i < count($movieInfo['playsite']); $i++) { 
+                    echo '<div class="am-tab-panel am-fade ct-res" id="'.$movieInfo['playsite'][$i]['ensite'].'">读取中...</div>';
+                }
+                ?>
+            </div>
+        </div>
         
         <br>* 如遇播放失败请尝试 
         
@@ -115,6 +156,7 @@ ui_topNav();
 </div>
 <?php } ?>
 
+<?php if(!empty($movieInfo['urls'])) { ?>
 <script>
 var store;
 
@@ -124,7 +166,8 @@ var videoInfo = {
     id: "<?php echo $tvID;?>",
     url: "<?php echo $movieInfo['urls'][0]['url'];?>",
     name: "<?php echo $movieInfo['name'];?>",
-    episode: "<?php echo $movieInfo['urls'][0]['no'];?>"
+    episode: "<?php echo $movieInfo['urls'][0]['no'];?>",
+    site: "<?php echo $movieInfo['playsite'][0]['ensite'];?>"
 }
 
 $(function() {
@@ -149,12 +192,25 @@ $(function() {
             if(histemp[i].types == "ct" && histemp[i].id == videoInfo.id) {
                 videoInfo.url = histemp[i].url;  // 使用之前的同一个播放源
                 videoInfo.episode = histemp[i].episode;  // 记录播放集数
+                videoInfo.site = histemp[i].site;  // 资源站点
+                
+                // 切换到当前播放源的 tab
+                $('#ct-res-choose').tabs('open', $('.am-tabs-nav a[href="#' + videoInfo.site + '"]'))
                 
                 layer.msg("您上次观看到第 " + histemp[i].episode + " 集");
                 break;
             }
         }
     }
+    
+    // 依次加载其它源资源
+    $(".ct-res").each(function () {
+        $(this).load("?ctid=<?php echo $tvID;?>&site=" + $(this).attr("id"), function() {
+            if($(this).attr("id") == videoInfo.site) {
+                highlightSource();    // 高亮当前播放的这一集
+            }
+        });
+    });
     
     // 找到并高亮所用播放源(剧集)
     $(".btn-play-source").each(function () {
@@ -172,6 +228,7 @@ $(function() {
         // 记录播放源（剧集）
         videoInfo.url = $(this).data("url");
         videoInfo.episode = $(this).html();
+        videoInfo.site = $(this).parent().attr('id');    // 来源
         
         // 更新视屏播放
         refreshVideo();
@@ -212,7 +269,8 @@ function refreshVideo() {
                     id: videoInfo.id, 
                     name: videoInfo.name,
                     url: videoInfo.url,
-                    episode: videoInfo.episode};
+                    episode: videoInfo.episode,
+                    site: videoInfo.site};
         
         // 找到历史播放记录并删除
         var histemp = store.get('history')? store.get('history'): [];
@@ -234,7 +292,18 @@ function refreshVideo() {
     }
 }
 
+// 找到并高亮所用播放源(剧集)
+function highlightSource() {
+    $(".btn-play-source").each(function () {
+        if($(this).data("url") == videoInfo.url) {
+            $(this).addClass("am-btn-secondary");
+            return false;    // 退出each
+        }
+    });
+}
+
 </script>
+<?php } ?>
 
 <div class="am-panel am-panel-default">
     <div class="am-panel-hd">简介</div>
@@ -249,23 +318,27 @@ function refreshVideo() {
         
         <ul data-am-widget="gallery" class="am-gallery am-avg-sm-2 am-avg-md-3 am-avg-lg-5 am-gallery-bordered tuijian-list">
             <?php 
-            preg_match('/<span>猜你喜欢<\/span>(.*)<ul class=\'m-guess-list g-clear js-list\'(.*)<\/ul>/sU', $content, $temp);
-            if(isset($temp[2])) {
-                preg_match_all('/data-src=\'([^\']*)\'>\r\s*<\/a>\r\s*<p class=\'title\'><a href=\'\/ct\/(\w*).html\' data-index=(\w*)>([^<]*)<\/a>/sU', $temp[2], $temp);
-                for($j=0; $j<count($temp[0]); $j++) { 
+            // 推荐（同类动漫）
+            $tuijian = filterList(4, array(
+                'cat' => isset($movieInfoData['moviecategory'][0]) ? $movieInfoData['moviecategory'][0] : '',
+                'size' => 10
+            ));
+            $tuijianCount = count($tuijian['movies']);
+            if($tuijianCount > 0) {
+                foreach($tuijian['movies'] as $k => $item) {
                     echo '
                         <li>
                         <div class="am-gallery-item tuijian-item">
-                            <a href="player.php?ctid='.$temp[2][$j].'">
-                                <img src="assets/i/lazy.gif" data-original="'.$temp[1][$j].'" alt="'.$temp[4][$j].'" class="lazyload">
-                                <h3 class="am-gallery-title">'.$temp[4][$j].'</h3>
+                            <a href="player.php?ctid='.$item['id'].'">
+                                <img src="assets/i/lazy.gif" data-original="'.(isset($item['cdncover']) ? $item['cdncover'] : $item['cover']).'" alt="'.$item['title'].'" class="lazyload">
+                                <h3 class="am-gallery-title">'.$item['title'].'</h3>
                             </a>
                         </div>
                         </li>
                     ';
                 }
             }
-            if(!isset($temp[2]) || count($temp[0]) == 0) {
+            if($tuijianCount == 0) {
                 echo '
                         <div class="am-alert am-alert-secondary" data-am-alert>
                             暂无相关推荐

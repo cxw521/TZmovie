@@ -107,9 +107,9 @@ function ui_topNav() {
                 更多 <span class="am-icon-caret-down"></span>
             </a>
             <ul class="am-dropdown-content">
-                <li><a href="http://lab.mkblog.cn/music_new/" target="_blank">音乐</a></li>
-                <li><a href="http://lab.mkblog.cn/wallpaper/" target="_blank">壁纸</a></li>
-                <li><a href="http://tool.mkblog.cn/tao/" target="_blank">购物</a></li>
+                <li><a href="https://music.taoziwei.com/" target="_blank">音乐</a></li>
+                <li><a href="https://wallpaper.taoziwei.com/" target="_blank">壁纸</a></li>
+                <li><a href="https://shop.taoziwei.com/" target="_blank">购物</a></li>
             </ul>
         </li>
     </ul>
@@ -164,10 +164,9 @@ function ui_footer($show = true) {
     <!-- 底部栏 -->
     <footer data-am-widget="footer" class="am-footer am-footer-default am-hide-sm-only" data-am-footer="{  }">
         <div class="am-footer-miscs">
-            <p>由 <a href="https://mkblog.cn/" title="孟坤博客" target="_blank" class="">孟坤博客</a>
+            <p>由 <a href="https://www.taoziwei.com/" title="桃子味🍑博客" target="_blank" class="">桃子味🍑博客</a>
             提供技术支持</p>
-            <p>CopyRight © 2017 mkblog.cn</p>
-            <p>湘ICP备xxxxxxxx号</p>
+            <p>CopyRight © 2026 taoziwei.com</p>
             <!-- 站长统计代码放在这里 -->
             <p>本站不提供任何资源存储服务，只提供查询服务</p>
         </div>
@@ -345,18 +344,6 @@ function movieItem($movie) {
 function includeJs($name, $description = '', $ver = '1.0') {
     if($description) echo "\n    <!-- $description -->";
     echo "\n    <script src=\"".C('siteurl')."/assets/js/{$name}.js?v{$ver}\"></script>\n";
-}
-
-/**
- * 输出 css 文件
- * @param $name css文件名
- * @param $description css文件描述
- * @param $ver css版本号
- * @return 输出对应css文件
- */
-function includeCss($name, $description = '', $ver = '1.0') {
-    if($description) echo "\n    <!-- $description -->";
-    echo "\n    <link rel=\"stylesheet\" href=\"".C('siteurl')."/assets/css/{$name}.css?v{$ver}\">\n";
 }
 
 /**

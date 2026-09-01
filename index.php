@@ -5,7 +5,14 @@ ui_head(C('name'));
 
 ui_topNav();
 
-$content = curl('https://www.360kan.com/');
+// 首页数据（360kan 官方 JSON API）
+$homeBanner = homeBanner();                                  // 首页轮播 banner
+$homeMovie = filterList(1, array('size' => 10));             // 电影
+$homeTv = filterList(2, array('size' => 10));                // 电视剧
+$homeVa = filterList(3, array('size' => 10));                // 综艺
+$homeCt = filterList(4, array('size' => 10));                // 动漫
+$rankMovie = rankList(2);                                    // 热播电影榜
+$rankTv = rankList(3);                                       // 热播电视剧榜
 
 ?>
 
@@ -39,18 +46,24 @@ $content = curl('https://www.360kan.com/');
         <!-- 轮播图开始 -->
         
         <?php 
-        $slider_count = count(C('slider'));
+        $bannerList = $homeBanner;
         
-        for($i=0; $i<$slider_count; $i++) {
+        for($i=0; $i<count($bannerList); $i++) {
+            $bImg = isset($bannerList[$i]['img']) ? $bannerList[$i]['img'] : '';
+            $bName = isset($bannerList[$i]['name']) ? $bannerList[$i]['name'] : '';
+            $bDesc = isset($bannerList[$i]['description']) ? $bannerList[$i]['description'] : '';
+            $bUrl = isset($bannerList[$i]['url']) ? $bannerList[$i]['url'] : 'javascript:;';
+            if($bImg !== '' && strpos($bImg, '//') === 0) $bImg = 'https:' . $bImg;
+            if($bUrl !== 'javascript:;' && strpos($bUrl, '//') === 0) $bUrl = 'https:' . $bUrl;
         echo '
         <li>
-            <img src="'.C('slider')[$i]['img'].'">
+            <img src="'.$bImg.'">
             <div class="am-slider-desc">
                 <div class="am-slider-content">
-                    <h2 class="am-slider-title">'.C('slider')[$i]['name'].'</h2>
-                    <p>'.C('slider')[$i]['description'].'</p>
+                    <h2 class="am-slider-title">'.$bName.'</h2>
+                    <p>'.$bDesc.'</p>
                 </div>
-                <a href="'.C('slider')[$i]['url'].'" target="_blank" class="am-slider-more">立即观看</a>
+                <a href="'.$bUrl.'" target="_blank" class="am-slider-more">立即观看</a>
             </div>
         </li>';
         }
@@ -67,22 +80,19 @@ $content = curl('https://www.360kan.com/');
         </h2>
     </div>
 
-    <ul class="am-avg-sm-3 am-avg-md-4 am-avg-lg-5 am-thumbnails movie-lists">
+    <ul class="am-avg-sm-2 am-avg-md-4 am-avg-lg-5 am-thumbnails movie-lists">
         <?php 
-        // 名字
-        preg_match('/<div class="content rmcontent">(.*)<\/ul>/sU', $content, $temp);
-        preg_match_all('/<a href=\'http[s]?:\/\/www.360kan.com\/m\/(\w*).html\'  class=\'js-link\'><div class=\'w-newfigure-imglink g-playicon js-playicon\'> <img src=\'([^\']*)\' data-src=\'([^\']*)\' alt=\'([^\']*)\'  \/><span class=\'w-newfigure-hint\'>(\d*)<\/span><\/div><div class=\'w-newfigure-detail\'><p class=\'title g-clear\'><span class=\'s1\'>([^<]*)<\/span>(<span class=\'s2\'>([^<]*)<\/span>)?<\/p><p class=\'w-newfigure-desc\'>([^<]*)<\/p>/sU', $temp[1], $temp);
-        for($j=0; $j<count($temp[0]); $j++) {
-            $tmpArr['url'] = 'player.php?mid='.$temp[1][$j];
-            $tmpArr['cover'] = $temp[3][$j];
-            $tmpArr['name'] = $temp[4][$j];
-            $tmpArr['name2'] = $temp[9][$j];
-            if($temp[8][$j]) {
-                $tmpArr['line1'] = '评分：'.$temp[8][$j];
+        foreach($homeMovie['movies'] as $j => $movie) {
+            $tmpArr['url'] = 'player.php?mid='.$movie['id'];
+            $tmpArr['cover'] = isset($movie['cdncover']) ? $movie['cdncover'] : $movie['cover'];
+            $tmpArr['name'] = $movie['title'];
+            $tmpArr['name2'] = isset($movie['moviecategory'][0]) ? $movie['moviecategory'][0] : '';
+            if(isset($movie['score']) && $movie['score']) {
+                $tmpArr['line1'] = '评分：'.$movie['score'];
             } else {
                 $tmpArr['line1'] = '暂无评分';
             }
-            $tmpArr['line2'] = '年代：'.$temp[5][$j];
+            $tmpArr['line2'] = '年代：'.(isset($movie['pubdate']) ? substr($movie['pubdate'],0,4) : '未知');
             $tmpArr['line3'] = '> 在线观看';
             
             movieItem($tmpArr); 
@@ -99,17 +109,68 @@ $content = curl('https://www.360kan.com/');
 
     <ul class="am-avg-sm-2 am-avg-md-3 am-avg-lg-5 am-thumbnails tv-lists">
         <?php 
-        // 名字
-        preg_match('/<ul class="list g-clear w-newfigure-list">(.*)<\/ul>/sU', $content, $temp);
-        preg_match_all('/<a href=\'http[s]?:\/\/www.360kan.com\/tv\/(\w*).html\'  class=\'js-link\'><div class=\'w-newfigure-imglink g-playicon js-playicon\'> <img src=\'(.*)\' data-src=\'(.*)\' alt=\'(.*)\'  \/><span class=\'w-newfigure-hint\'>(.*)<\/span><\/div><div class=\'w-newfigure-detail\'><p class=\'title g-clear\'><span class=\'s1\'>(.*)<\/span>(<span class=\'s2\'>(.*)<\/span>)?<\/p><p class=\'w-newfigure-desc\'>(.*)<\/p>/sU', $temp[1], $temp);
-        for($j=0; $j<count($temp[0]); $j++) {
-            $tmpArr['url'] = 'player.php?tvid='.$temp[1][$j];
-            $tmpArr['cover'] = $temp[3][$j];
-            $tmpArr['name'] = $temp[4][$j];
-            $tmpArr['name2'] = $temp[9][$j];
-            $tmpArr['line1'] = $temp[5][$j];
-            if($temp[8][$j]) {
-                $tmpArr['line2'] = '评分：'.$temp[8][$j];
+        foreach($homeTv['movies'] as $j => $movie) {
+            $tmpArr['url'] = 'player.php?tvid='.$movie['id'];
+            $tmpArr['cover'] = isset($movie['cdncover']) ? $movie['cdncover'] : $movie['cover'];
+            $tmpArr['name'] = $movie['title'];
+            $tmpArr['name2'] = isset($movie['moviecategory'][0]) ? $movie['moviecategory'][0] : '';
+            $tmpArr['line1'] = isset($movie['upinfo']) ? '更新至'.$movie['upinfo'].'集' : '全剧';
+            if(isset($movie['score']) && $movie['score']) {
+                $tmpArr['line2'] = '评分：'.$movie['score'];
+            } else {
+                $tmpArr['line2'] = '暂无评分';
+            }
+            $tmpArr['line3'] = '> 在线观看';
+            
+            movieItem($tmpArr); 
+        }
+        
+        ?>
+    </ul>
+
+    <div data-am-widget="titlebar" class="am-titlebar am-titlebar-default">
+        <h2 class="am-titlebar-title ">
+            动漫
+        </h2>
+    </div>
+
+    <ul class="am-avg-sm-2 am-avg-md-3 am-avg-lg-5 am-thumbnails ct-lists">
+        <?php 
+        foreach($homeCt['movies'] as $j => $movie) {
+            $tmpArr['url'] = 'player.php?ctid='.$movie['id'];
+            $tmpArr['cover'] = isset($movie['cdncover']) ? $movie['cdncover'] : $movie['cover'];
+            $tmpArr['name'] = $movie['title'];
+            $tmpArr['name2'] = isset($movie['moviecategory'][0]) ? $movie['moviecategory'][0] : '';
+            $tmpArr['line1'] = isset($movie['upinfo']) ? '更新至'.$movie['upinfo'].'集' : '全剧';
+            if(isset($movie['score']) && $movie['score']) {
+                $tmpArr['line2'] = '评分：'.$movie['score'];
+            } else {
+                $tmpArr['line2'] = '暂无评分';
+            }
+            $tmpArr['line3'] = '> 在线观看';
+            
+            movieItem($tmpArr); 
+        }
+        
+        ?>
+    </ul>
+
+    <div data-am-widget="titlebar" class="am-titlebar am-titlebar-default">
+        <h2 class="am-titlebar-title ">
+            综艺
+        </h2>
+    </div>
+
+    <ul class="am-avg-sm-2 am-avg-md-3 am-avg-lg-5 am-thumbnails va-lists">
+        <?php 
+        foreach($homeVa['movies'] as $j => $movie) {
+            $tmpArr['url'] = 'player.php?vaid='.$movie['id'];
+            $tmpArr['cover'] = isset($movie['cdncover']) ? $movie['cdncover'] : $movie['cover'];
+            $tmpArr['name'] = $movie['title'];
+            $tmpArr['name2'] = isset($movie['moviecategory'][0]) ? $movie['moviecategory'][0] : '';
+            $tmpArr['line1'] = isset($movie['upinfo']) ? '更新至'.$movie['upinfo'].'期' : '';
+            if(isset($movie['score']) && $movie['score']) {
+                $tmpArr['line2'] = '评分：'.$movie['score'];
             } else {
                 $tmpArr['line2'] = '暂无评分';
             }
@@ -131,17 +192,14 @@ $content = curl('https://www.360kan.com/');
 
     <ul class="right-list">
         <?php 
-        // 获取电影榜
-        preg_match('/<span class="p-mod-label">电影榜<\/span>(.*)<\/ul>/sU', $content, $temp);
-        
-        preg_match_all('/<span class="num( top3)?">(\d+)<\/span>(.*)<a title="(.*)" href="http[s]?:\/\/www.360kan.com\/m\/(\w+).html" class="name">(.*)<\/a>(.*)<span class="vv">(.*)<\/span>/sU', $temp[1], $temp);
-        for($j=0; $j<count($temp[0]); $j++) {
+        foreach($rankMovie as $j => $item) {
+            $rank = $j + 1;
             echo '
         <li>
-            <a href="'.C('siteurl').'/player.php?mid='.$temp[5][$j].'" target="_blank" class="am-text-truncate">
-                <span class="r-l-right">'.$temp[8][$j].'</span>
-                <span class="am-badge am-round">'.$temp[2][$j].'</span>
-                '.$temp[6][$j].'
+            <a href="'.C('siteurl').'/player.php?mid='.$item['ent_id'].'" target="_blank" class="am-text-truncate">
+                <span class="r-l-right">'.(isset($item['pv']) ? $item['pv'].'次播放' : '').'</span>
+                <span class="am-badge am-round'.($rank<=3?' am-badge-danger':'').'">'.$rank.'</span>
+                '.$item['title'].'
             </a>
         </li>
             ';
@@ -158,17 +216,14 @@ $content = curl('https://www.360kan.com/');
 
     <ul class="right-list">
         <?php 
-        // 电视剧榜
-        preg_match('/<span class="p-mod-label">电视剧排行榜<\/span>(.*)<\/ul>/sU', $content, $temp);
-        
-        preg_match_all('/<span class="num( top3)?">(\d+)<\/span>(.*)<a title="(.*)" href="http[s]?:\/\/www.360kan.com\/tv\/(\w+).html" class="name">(.*)<\/a>(.*)<span class="vv">(.*)<\/span>/sU', $temp[1], $temp);
-        for($j=0; $j<count($temp[0]); $j++) {
+        foreach($rankTv as $j => $item) {
+            $rank = $j + 1;
             echo '
         <li>
-            <a href="'.C('siteurl').'/player.php?tvid='.$temp[5][$j].'" target="_blank" class="am-text-truncate">
-                <span class="r-l-right">'.$temp[8][$j].'</span>
-                <span class="am-badge am-round">'.$temp[2][$j].'</span>
-                '.$temp[6][$j].'
+            <a href="'.C('siteurl').'/player.php?tvid='.$item['ent_id'].'" target="_blank" class="am-text-truncate">
+                <span class="r-l-right">'.(isset($item['pv']) ? $item['pv'].'次播放' : '').'</span>
+                <span class="am-badge am-round'.($rank<=3?' am-badge-danger':'').'">'.$rank.'</span>
+                '.$item['title'].'
             </a>
         </li>
             ';
@@ -184,8 +239,8 @@ $content = curl('https://www.360kan.com/');
     <div class="am-panel-hd">友情链接</div>
     <div class="am-panel-bd">
         <!-- 友情链接 -->
-        <a href="https://mkblog.cn" target="_blank">孟坤博客</a>
-        <a href="http://tool.mkblog.cn/" target="_blank">孟坤工具箱</a>
+        <a href="https://www.taoziwei.com" target="_blank">桃子味🍑博客</a>
+        <a href="http://tool.taoziwei.com/" target="_blank">桃子味工具箱</a>
     </div>
 </div>
 

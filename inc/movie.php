@@ -1,68 +1,17 @@
 <?php
 
-$url = 'https://www.360kan.com/m/'.$tvID.'.html';
+// 电影播放详情（360kan 官方 JSON API）
+$playData = getMovieLinks(1, $tvID);
+$movieInfoData = $playData['info'];
+if(!$movieInfoData) die404('404');
 
-$content = curl($url);
+$movieInfo['name'] = $movieInfoData['title'];
+$movieInfo['description'] = isset($movieInfoData['description']) ? $movieInfoData['description'] : '';
 
-// 匹配主体
-preg_match('/<div class="title-left g-clear">(.*)<div class="p-body-right">/sU', $content, $temp);
-if(!isset($temp[1])) die404('404');
-
-$content = $temp[1];
- 
-// 名字
-preg_match('/<h1>(.*)<\/h1>/sU', $content, $temp);
-$movieInfo['name'] = $temp[1];
-
-/*
-// 评分
-preg_match('/<span class="s">(.*)<\/span>  /sU', $content, $temp);
-$movieInfo['score'] = $temp[1];
-
-// 年代
-preg_match('/年代：<\/span>(.*)<\/p>/sU', $content, $temp);
-$movieInfo['years'] = $temp[1];
-
-// 地区
-preg_match('/地区：<\/span>(.*)<\/p>/sU', $content, $temp);
-$movieInfo['area'] = $temp[1];
-
-// 类型
-preg_match('/<p class="tag">(.*)<\/p>/sU', $content, $temp);
-$movieInfo['tag'] = $temp[1];
-
-// 演员
-preg_match('/<span>演员：<\/span>(.*)<\/p>/sU', $content, $temp);
-preg_match_all('/<a class="name" href="(.*)">(.*)<\/a>/sU', $temp[1], $temp);
-for($j=0; $j<count($temp[0]); $j++) {
-    $movieInfo['actor'][] = array('name' => $temp[2][$j]);
-}
-
-
-// 导演
-preg_match('/<span>导演：<\/span>(.*)<\/p>/sU', $content, $temp);
-preg_match_all('/<a class="name" href="(.*)">(.*)<\/a>/sU', $temp[1], $temp);
-for($j=0; $j<count($temp[0]); $j++) {
-    $movieInfo['director'][] = array('name' => $temp[2][$j]);
-}
-
-*/
-
-// 描述
-preg_match('/style="display:none;"><span>简介：<\/span>(.*)<a href="#" class="js-close btn">收起/sU', $content, $temp);
-$movieInfo['description'] = $temp[1];
-
-// 链接
-preg_match_all('/data-daochu="to=\w*" class="btn js-site ea-site ea-site-\w*" href="(.*)">(.*)<\/a>/sU', $content, $temp);
-for($j=0; $j<count($temp[0]); $j++) { 
-    $temp_urls = str_replace("http://cps.youku.com/redirect.html?id=0000028f&url=", "", $temp[1][$j]);
-    // $temp_urls = str_replace("?ptag=360kan.movie.pay", "", $temp_urls);
-    // $temp_urls = str_replace("&tpa=dW5pb25faWQ9MTAyMjEzXzEwMDAwN18wMV8wMQ", "", $temp_urls);
-    // $temp_urls = str_replace("?ch=360_ffdy", "", $temp_urls);
-    // $temp_urls = str_replace("&from=360sousuo&refer=360sousuo", "", $temp_urls);
-    // $temp_urls = str_replace("?vfm=f_191_360y", "", $temp_urls);    // 爱奇艺
-    $movieInfo['urls'][] = array('from' => $temp[2][$j],
-                              'url' => $temp_urls);
+// 播放链接（各源站）
+$movieInfo['urls'] = array();
+foreach($playData['playlinks'] as $site => $url) {
+    $movieInfo['urls'][] = array('from' => siteName($site), 'url' => $url);
 }
 
 // 输出网页头文件
@@ -102,7 +51,7 @@ ui_topNav();
 <div class="am-panel am-panel-default">
     <div class="am-panel-hd"><?php echo $movieInfo['name']; ?></div>
     
-    <?php if(!isset($movieInfo['urls'])) { ?>
+    <?php if(empty($movieInfo['urls'])) { ?>
     
     <div class="am-alert am-alert-warning" data-am-alert>
         <span class="am-icon-chain-broken am-icon-lg">&nbsp;</span> 
@@ -118,7 +67,7 @@ ui_topNav();
     <?php } ?>
 </div>
 
-<?php if(isset($movieInfo['urls'])) { ?>
+<?php if(!empty($movieInfo['urls'])) { ?>
 
 <div class="am-panel am-panel-default">
     <div class="am-panel-hd">播放源</div>
@@ -306,19 +255,22 @@ function refreshVideo() {
         <ul data-am-widget="gallery" class="am-gallery am-avg-sm-2 am-avg-md-3 am-avg-lg-5 am-gallery-bordered tuijian-list">
             
             <?php 
-            // 推荐
-            preg_match('/<span class="p-mod-label">猜你喜欢<\/span>(.*)<ul class="tuijian-list w-newfigure-list g-clear">(.*)<\/ul>/sU', $content, $temp);
-            if(isset($temp[2])) {
-                preg_match_all('/<a href=\'\/m\/(\w*).html\'  class=\'js-link\'><div class=\'w-newfigure-imglink g-playicon js-playicon\'> <img src=\'(.*)\' data-src=\'(.*)\' alt=\'(.*)\'  \/><\/div><div class=\'w-newfigure-detail\'><p class=\'title g-clear\'><span class=\'s1\'>(.*)<\/span><span class=\'s2\'>(.*)<\/span>/sU', $temp[2], $temp);
-                for($j=0; $j<count($temp[0]); $j++) { 
+            // 推荐（同类型电影）
+            $tuijian = filterList(1, array(
+                'cat' => isset($movieInfoData['moviecategory'][0]) ? $movieInfoData['moviecategory'][0] : '',
+                'size' => 10
+            ));
+            $tuijianCount = count($tuijian['movies']);
+            if($tuijianCount > 0) {
+                foreach($tuijian['movies'] as $k => $item) {
                     echo '
                     <li>
                         <div class="am-gallery-item tuijian-item">
-                            <a href="player.php?mid='.$temp[1][$j].'">
-                                <img data-original="'.$temp[3][$j].'" alt="'.$temp[4][$j].'" src="assets/i/lazy.gif" class="lazyload">
+                            <a href="player.php?mid='.$item['id'].'">
+                                <img data-original="'.(isset($item['cdncover']) ? $item['cdncover'] : $item['cover']).'" alt="'.$item['title'].'" src="assets/i/lazy.gif" class="lazyload">
                                 <h3 class="am-gallery-title">
-                                    '.$temp[4][$j].' 
-                                    <span class="am-gallery-desc">'.$temp[6][$j].'分</span>
+                                    '.$item['title'].' 
+                                    <span class="am-gallery-desc">'.$item['score'].'分</span>
                                 </h3>
                             </a>
                         </div>
@@ -327,7 +279,7 @@ function refreshVideo() {
                 }
             }
             
-            if(!isset($temp[2]) || count($temp[0]) == 0) {
+            if($tuijianCount == 0) {
                 echo '
                     <div class="am-alert am-alert-secondary" data-am-alert>
                         暂无相关推荐

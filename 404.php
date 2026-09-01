@@ -12,10 +12,6 @@ ui_head($errTitle);
 ui_topNav();
 ?>
 
-<style>
-
-</style>
-
 <div class="am-container">
 
 出错了！原因：<?php echo $errTitle; ?>

@@ -67,13 +67,14 @@ ui_head($wd.' - 搜索结果');
 
 ui_topNav();
 
-$content = curl('https://so.360kan.com/index.php?kw='.$wd);
+$content = curl('https://api.so.360kan.com/index?kw='.urlencode($wd));
 
-preg_match_all('/<div class="b-mainpic">(.*)class="js-b-fulldesc" data-full="(.*)"/sU', $content, $matches);
-
-preg_match_all('/<a href="http[s]?:\/\/www.360kan.com\/m\/(\w*).html" class="btn btn-gray" disabled/sU', $content, $badID);
-
-$movies['counts'] = count($matches[0]);
+$searchData = json_decode($content, true);
+$rows = array();
+if(isset($searchData['data']['longData']['rows'])) {
+    $rows = $searchData['data']['longData']['rows'];
+}
+$movies['counts'] = count($rows);
 
 ?>
 
@@ -91,55 +92,47 @@ $movies['counts'] = count($matches[0]);
     <!-- 搜索结果列表 -->
 <?php
 for ($i=0; $i< $movies['counts']; $i++) {
+    $row = $rows[$i];
     
     // 播放ID
     $tmpArr['url'] = '';
-    preg_match('/<a href="http[s]?:\/\/www.360kan.com\/(m|tv|ct|va)\/(\w*).html" >/U', $matches[1][$i], $temp);
-    if(isset($temp[1])) {
-        switch($temp[1]) {
-            case 'm':     // 电影
-                $tmpArr['url'] = 'player.php?mid='.$temp[2];
-            break;
-            
-            case 'tv':     // 电视剧
-                $tmpArr['url'] = 'player.php?tvid='.$temp[2];
-            break;
-            
-            case 'ct':     // 动漫
-                $tmpArr['url'] = 'player.php?ctid='.$temp[2];
-            break;
-            
-            case 'va':     // 综艺
-                $tmpArr['url'] = 'player.php?vaid='.$temp[2];
-            break;
-        }
+    switch($row['cat_id']) {
+        case 1:     // 电影
+            $tmpArr['url'] = 'player.php?mid='.$row['en_id'];
+            $tmpArr['types'] = '电影';
+        break;
         
-        for($k = 0; $k< count($badID[1]); $k++) {
-            if($temp[2] == $badID[1][$k]) {
-                $tmpArr['url'] = '';
-                break;
-            }
-        }
+        case 2:     // 电视剧
+            $tmpArr['url'] = 'player.php?tvid='.$row['en_id'];
+            $tmpArr['types'] = '电视剧';
+        break;
+        
+        case 3:     // 综艺
+            $tmpArr['url'] = 'player.php?vaid='.$row['en_id'];
+            $tmpArr['types'] = '综艺';
+        break;
+        
+        case 4:     // 动漫
+            $tmpArr['url'] = 'player.php?ctid='.$row['en_id'];
+            $tmpArr['types'] = '动漫';
+        break;
+        
+        default:
+            $tmpArr['types'] = isset($row['cat_name']) ? $row['cat_name'] : '未知';
+        break;
     }
     
     // 名字
-    preg_match('/class="g-playicon js-playicon" title="(.*)"/U', $matches[1][$i], $temp);
-    $tmpArr['name'] = $temp[1];
+    $tmpArr['name'] = strip_tags($row['title']);
     
     // 评分
-    preg_match('/评分：<span>(.*)<\/span>/U', $matches[1][$i], $temp);
-    $tmpArr['score'] = isset($temp[1])? $temp[1]: '';
+    $tmpArr['score'] = isset($row['score']) && $row['score'] ? $row['score'] : '';
     
     // 封面图
-    preg_match('/<img src="(.*)"/U', $matches[1][$i], $temp);
-    $tmpArr['cover'] = $temp[1];
-    
-    // 类型
-    preg_match('/<span class="playtype">\[(.*)]<\/span>/U', $matches[1][$i], $temp);
-    $tmpArr['types'] = $temp[1];
+    $tmpArr['cover'] = isset($row['cover']) ? $row['cover'] : '';
     
     // 描述
-    $tmpArr['description'] = str_replace("\n", '<br>', $matches[2][$i]);
+    $tmpArr['description'] = isset($row['description']) ? str_replace("\n", '<br>', strip_tags($row['description'])) : '';
     
     search_item($tmpArr);
     

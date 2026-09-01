@@ -5,26 +5,26 @@ ui_head('综艺分类列表');
 
 ui_topNav();
 
-$cat = htmlspecialchars(getParam('cat'));    // 类型
-$area = htmlspecialchars(getParam('area'));    // 地区
+$cat = htmlspecialchars(getParam('cat'));    // 类型（数字，转为中文）
+$area = htmlspecialchars(getParam('area'));    // 地区（数字，转为中文）
 $year = htmlspecialchars(getParam('year'));    // 年代
 $act = htmlspecialchars(getParam('act'));    // 主演
 
 $pageno = intval(getParam('pageno', '1'));    // 页码
 if($pageno == '') $pageno = '1';
 
-// curl 获取内容
-$content = curl('https://www.360kan.com/zongyi/list.php?cat='.$cat.'&area='.$area.'&year='.$year.'&act='.$act.'&pageno='.$pageno);
+// 360kan 官方 JSON API：数字筛选值转中文
+$listData = filterList(3, array(
+    'cat' => cnFilter('variety', 'cat', $cat),
+    'area' => cnFilter('variety', 'area', $area),
+    'year' => $year,
+    'act' => $act,
+    'pageno' => $pageno,
+    'size' => 24
+));
 
-// 获取最大页码
-preg_match('/(\d+)<\/a><a href=\'([^\']*)\' target=\'_self\' class=\'btn\'>下一页/sU', $content, $temp);
-
-if(!isset($temp[1])) {
-    preg_match('/<a target=\'_self\' class=\'on\'>(\d+)<\/a><\/div>/sU', $content, $temp);
-    
-}
-
-$maxPage = intval(isset($temp[1])? $temp[1]: 1);
+$movies = $listData['movies'];
+$maxPage = max(1, intval(ceil($listData['total'] / 24)));
 ?>
 
 <style>
@@ -153,18 +153,14 @@ $maxPage = intval(isset($temp[1])? $temp[1]: 1);
 
     <ul class="am-avg-sm-3 am-avg-md-4 am-avg-lg-6 am-thumbnails movie-lists">
         <?php 
-        // 名字
-        preg_match('/<div class="s-tab-main">(.*)<\/ul>/sU', $content, $temp);
-        preg_match_all('/<a class="js-tongjic" href="\/va\/(\w*).html">\r\n\s+<div class="cover g-playicon">\r\n\s+<img src="([^"]*)">\r\n\s+(<span class="pay">付费<\/span>)?(                                <span class="hint">)?([^<]*)(<\/span>)?\s+<\/div>\r\n\s+<div class="detail">\r\n\s+<p class="title g-clear">\r\n\s+<span class="s1">(.*)<\/span>\r\n\s+<span class="s2">(.*)<\/span>\r\n\s+<\/p>\r\n\s+<p class="star">(.*)<\/p>/sU', $temp[1], $temp);
-        
-        $movieCount = count($temp[0]);
+        $movieCount = count($movies);
         
         for($j=0; $j<$movieCount; $j++) {
-            $tmpArr['url'] = 'player.php?vaid='.$temp[1][$j];
-            $tmpArr['cover'] = $temp[2][$j];
-            $tmpArr['name'] = $temp[7][$j];
-            $tmpArr['name2'] = $temp[9][$j];
-            $tmpArr['line1'] = $temp[5][$j];
+            $tmpArr['url'] = 'player.php?vaid='.$movies[$j]['id'];
+            $tmpArr['cover'] = isset($movies[$j]['cdncover']) ? $movies[$j]['cdncover'] : $movies[$j]['cover'];
+            $tmpArr['name'] = $movies[$j]['title'];
+            $tmpArr['name2'] = isset($movies[$j]['moviecategory'][0]) ? $movies[$j]['moviecategory'][0] : '';
+            $tmpArr['line1'] = isset($movies[$j]['upinfo']) ? '更新至'.$movies[$j]['upinfo'].'期' : '全集';
             $tmpArr['line2'] = '';
             $tmpArr['line3'] = '> 在线观看';
             

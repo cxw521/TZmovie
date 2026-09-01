@@ -2,48 +2,34 @@
 
 $site = getParam('site');
 if($site) {
-    // 获取其它播放源的资源
-    $content = curl('https://www.360kan.com/cover/switchsite?site='.$site.'&id='.$tvID.'&category=2');
-    $content = json_decode($content, true)['data'];
-    
-    $urls = decodeTVUrl($content);
+    // 获取其它播放源的剧集
+    $urls = array();
+    $episodes = episodeList(2, $tvID, $site);
+    foreach($episodes as $k => $ep) {
+        $urls[] = array('no' => $k + 1, 'url' => $ep['url']);
+    }
     echoTVUrls($urls);
-    
     die();
 }
 
-$url = 'https://www.360kan.com/tv/'.$tvID.'.html';
+// 电视剧播放详情（360kan 官方 JSON API）
+$playData = getMovieLinks(2, $tvID);
+$movieInfoData = $playData['info'];
+if(!$movieInfoData) die404('404');
 
-$content = curl($url);
+$movieInfo['name'] = $movieInfoData['title'];
+$movieInfo['description'] = isset($movieInfoData['description']) ? $movieInfoData['description'] : '';
 
-// 匹配主体
-preg_match('/<div class="title-left g-clear">(.*)<\/body>/sU', $content, $temp);
-if(!isset($temp[1])) die404('404');
+// 默认源站
+$movieInfo['playsite'] = $playData['sites'];
 
-$content = $temp[1];
-
-// 名字
-preg_match('/<h1>(.*)<\/h1>/sU', $content, $temp);
-$movieInfo['name'] = $temp[1];
-
-// 描述
-preg_match('/style="display:none;"><span>简介：<\/span>(.*)<a href="#" class="js-close btn">收起/sU', $content, $temp);
-$movieInfo['description'] = $temp[1];
-
-// 链接
-
-$movieInfo['urls'] = decodeTVUrl($content);
-
-// 解码链接
-function decodeTVUrl($content) {
-    preg_match('/<div class="num-tab-main g-clear js-tab"(.*)<\/div>/sU', $content, $temp);
-    preg_match_all('/<a data-num="(\d+)" data-daochu="(.*)" href="(.*)">/sU', $temp[1], $temp);
-    for($j=0; $j<count($temp[0]); $j++) { 
-        $temp_urls = str_replace("http://cps.youku.com/redirect.html?id=0000028f&url=", "", $temp[3][$j]);
-        $tmpArr[] = array('no' => $temp[1][$j],
-                                  'url' => $temp_urls);
+// 默认源站剧集列表
+$movieInfo['urls'] = array();
+if(isset($playData['sites'][0])) {
+    $episodes = episodeList(2, $tvID, $playData['sites'][0]['ensite']);
+    foreach($episodes as $k => $ep) {
+        $movieInfo['urls'][] = array('no' => $k + 1, 'url' => $ep['url']);
     }
-    return $tmpArr;
 }
 
 // 输出电视链接
@@ -53,10 +39,6 @@ function echoTVUrls($urls) {
         <button type="button" class="am-btn am-btn-sm btn-play-source" data-url="'.$urls[$j]['url'].'">'.$urls[$j]['no'].'</button>';
     }
 }
-
-// 播放源
-preg_match('/\',\r\s*playsite:(.*),\r\s*playtype:/sU', $content, $temp);
-$movieInfo['playsite'] = json_decode($temp[1], true);
 
 // 输出网页头文件
 ui_head(
@@ -95,7 +77,7 @@ ui_topNav();
 <div class="am-panel am-panel-default">
     <div class="am-panel-hd"><?php echo $movieInfo['name']; ?></div>
     
-    <?php if(!isset($movieInfo['urls'])) { ?>
+    <?php if(empty($movieInfo['urls'])) { ?>
     
     <div class="am-alert am-alert-warning" data-am-alert>
         <span class="am-icon-chain-broken am-icon-lg">&nbsp;</span> 
@@ -111,7 +93,7 @@ ui_topNav();
     <?php } ?>
 </div>
 
-<?php if(isset($movieInfo['urls'])) { ?>
+<?php if(!empty($movieInfo['urls'])) { ?>
 <div class="am-panel am-panel-default">
     <div class="am-panel-hd">
         选集
@@ -186,6 +168,7 @@ ui_topNav();
 </div>
 <?php } ?>
 
+<?php if(!empty($movieInfo['urls'])) { ?>
 <script>
 var store;
 
@@ -364,6 +347,7 @@ function refreshVideo() {
 }
 
 </script>
+<?php } ?>
 
 <div class="am-panel am-panel-default">
     <div class="am-panel-hd">简介</div>
@@ -378,24 +362,27 @@ function refreshVideo() {
         
         <ul data-am-widget="gallery" class="am-gallery am-avg-sm-2 am-avg-md-3 am-avg-lg-5 am-gallery-bordered tuijian-list">
             <?php 
-            // 推荐
-            preg_match('/<span>猜你喜欢<\/span>(.*)<ul class=\'s-guess-list g-clear js-list\'(.*)<\/ul>/sU', $content, $temp);
-            if(isset($temp[2])) {
-                preg_match_all('/data-src=\'([^\']*)\'>\r\s*<\/a>\r\s*<div class=\'s-guess-right\'>\r\s*<p class=\'title\'><a href=\'\/tv\/(\w*).html\' data-index=(\w*)>([^<]*)<\/a>/sU', $temp[2], $temp);
-                for($j=0; $j<count($temp[0]); $j++) { 
+            // 推荐（同类电视剧）
+            $tuijian = filterList(2, array(
+                'cat' => isset($movieInfoData['moviecategory'][0]) ? $movieInfoData['moviecategory'][0] : '',
+                'size' => 10
+            ));
+            $tuijianCount = count($tuijian['movies']);
+            if($tuijianCount > 0) {
+                foreach($tuijian['movies'] as $k => $item) {
                     echo '
                         <li>
                         <div class="am-gallery-item tuijian-item">
-                            <a href="player.php?tvid='.$temp[2][$j].'">
-                                <img src="assets/i/lazy.gif" data-original="'.$temp[1][$j].'" alt="'.$temp[4][$j].'" class="lazyload">
-                                <h3 class="am-gallery-title">'.$temp[4][$j].'</h3>
+                            <a href="player.php?tvid='.$item['id'].'">
+                                <img src="assets/i/lazy.gif" data-original="'.(isset($item['cdncover']) ? $item['cdncover'] : $item['cover']).'" alt="'.$item['title'].'" class="lazyload">
+                                <h3 class="am-gallery-title">'.$item['title'].'</h3>
                             </a>
                         </div>
                         </li>
                     ';
                 }
             }
-            if(!isset($temp[2]) || count($temp[0]) == 0) {
+            if($tuijianCount == 0) {
                 echo '
                         <div class="am-alert am-alert-secondary" data-am-alert>
                             暂无相关推荐

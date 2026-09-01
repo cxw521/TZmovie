@@ -163,11 +163,7 @@ body {
     color: #fff;
 }
 
-/* 自动隐藏多出的两个 */
 @media only screen and (min-width: 1025px) {
-    .index-container .movie-lists li:nth-last-child(2), .index-container .movie-lists li:nth-last-child(1) {
-        display: none!important;
-    }
     /*.tv-lists li:nth-child(16),.tv-lists li:nth-child(17),.tv-lists li:nth-child(18) {*/
     /*    display: none!important;*/
     /*}*/
@@ -206,7 +202,7 @@ body {
 }
 .right-list li a {
     display: block;
-    line-height: 44px;
+    line-height: 38px;
     color: #555;
 }
 .right-list li a:hover {
