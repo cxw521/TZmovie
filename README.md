@@ -2,6 +2,28 @@
 
 一个基于 **PHP + AmazeUI** 的免费在线影视站，数据源全部来自 360kan（360影视）公开 JSON 接口。无需数据库、无需后台，纯 PHP 页面 + 接口采集即可运行。
 
+> 🌐 **在线演示**：https://movie.taoziwei.com/
+
+## 📸 截图预览
+
+**首页**（banner 轮播 + 分类列表 + 热播榜）
+![首页](screenshots/1-home.jpg)
+
+**电影列表**（分类 / 地区 / 年份 / 主演筛选）
+![电影列表](screenshots/2-movie.jpg)
+
+**搜索页**
+![搜索页](screenshots/6-search.jpg)
+
+**播放页**（多源站切换 + 解析接口）
+![播放页](screenshots/5-player.png)
+
+**电视直播**（分组频道 + HLS 播放）
+![电视直播](screenshots/3-live.png)
+
+**VIP 解析**
+![VIP解析](screenshots/4-vip.png)
+
 ## ✨ 功能特性
 
 - 🎬 **四大分类**：电影、电视剧、动漫、综艺（支持分类 / 地区 / 年份 / 主演筛选与分页）
