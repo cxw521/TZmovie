@@ -1,4 +1,4 @@
-# 🍑 桃子味影院（mkmovie）
+# 🍑 桃子味影院（TZmovie）
 
 一个基于 **PHP + AmazeUI** 的免费在线影视站，数据源全部来自 360kan（360影视）公开 JSON 接口。无需数据库、无需后台，纯 PHP 页面 + 接口采集即可运行。
 
@@ -143,7 +143,7 @@ php -S 0.0.0.0:8080 -t /workspace
 发布到 GitHub / 服务器时，可用 zip 打包（自动排除 `.git`）：
 
 ```bash
-zip -r mkmovie.zip . -x "*.git*" "*.zip"
+zip -r TZmovie.zip . -x "*.git*" "*.zip"
 ```
 
 ## 📄 免责声明

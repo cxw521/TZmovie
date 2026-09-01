@@ -344,7 +344,7 @@ function liveSource($url = 'https://live.zbds.top/tv/iptv4.txt', $cacheTtl = 216
         $content = @file_get_contents($verifiedFile);
         if(is_string($content) && trim($content) !== '') return $content;
     }
-    $cacheFile = sys_get_temp_dir() . '/mkmovie_live_' . md5($url) . '.txt';
+    $cacheFile = sys_get_temp_dir() . '/TZmovie_live_' . md5($url) . '.txt';
     $content = '';
     if(file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTtl) {
         $content = @file_get_contents($cacheFile);
@@ -409,7 +409,7 @@ function parseLiveChannels($text) {
  * @return array 每个元素为 array('img'=>, 'name'=>, 'description'=>, 'url'=>)
  */
 function homeBanner($cacheTtl = 21600) {
-    $cacheFile = sys_get_temp_dir() . '/mkmovie_banner.json';
+    $cacheFile = sys_get_temp_dir() . '/TZmovie_banner.json';
     if(file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTtl) {
         $cached = @json_decode(@file_get_contents($cacheFile), true);
         if(is_array($cached) && count($cached) > 0) return $cached;
